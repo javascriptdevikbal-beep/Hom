@@ -1,1 +1,51 @@
+# .github/workflows/ch01-docs-check.yml
+name: ch01-docs-check
 
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Make verify script executable
+        run: chmod +x scripts/ch01_verify.sh
+
+      - name: Run docs verify script
+        run: ./scripts/ch01_verify.sh
+
+      - name: Run Gradle build & tests
+        run: ./gradlew clean test assembleDebug --no-daemon
+
+      - name: Check for APK artifact
+        id: apk_check
+        run: |
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            echo "apk_found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "apk_found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload APK artifact
+        if: steps.apk_check.outputs.apk_found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload verification report
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-report
+          path: verification-report.txt
